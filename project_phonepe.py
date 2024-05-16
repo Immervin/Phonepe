@@ -92,7 +92,13 @@ class PhonepeDataVisualization:
         if ways=='All India':
 
             # Overall Transaction
-            query_oa_year_quater = 'SELECT state "States", transaction_count "Transaction Count", transaction_amount "Transaction Amount", round(transaction_amount/transaction_count,2) "Avg Transaction" FROM aggregate_transaction WHERE quater=%s AND year=%s GROUP BY state'
+            query_oa_year_quater = '''SELECT state "States",
+                                      sum(transaction_count) "Transaction Count", 
+                                      round(sum(transaction_amount),2) "Transaction Amount", 
+                                      round(sum(transaction_amount)/sum(transaction_count),2) "Avg Transaction" 
+                                      FROM map_tran 
+                                      WHERE quater=%s AND year=%s 
+                                      GROUP BY state'''
             self.mycursor.execute(query_oa_year_quater, (quarter, year))
 
             result = self.mycursor.fetchall()
@@ -126,7 +132,7 @@ class PhonepeDataVisualization:
                 )
 
             fig_geo.update_geos(fitbounds="locations", visible=False)
-            fig_geo.update_traces(hovertemplate='<b>%{hovertext}</b><br><b>Transaction Count:</b> %{customdata[1]:}<br><b>Transaction Amount:</b> ₹%{customdata[0]:.2f}<br><b>Transaction Amount:</b> ₹%{customdata[2]}<extra></extra>')
+            fig_geo.update_traces(hovertemplate='<b>%{hovertext}</b><br><b>Transaction Count:</b> %{customdata[1]:}<br><b>Avg Transaction:</b> ₹%{customdata[0]:.2f}<br><b>Transaction Amount:</b> ₹%{customdata[2]}<extra></extra>')
             st.plotly_chart(fig_geo)
 
             # elif option_type == 'All India':
@@ -144,7 +150,7 @@ class PhonepeDataVisualization:
 
 
             # StateWise Transaction
-            query_sw_year_quater = '''SELECT transaction_count "Transaction Count", round(transaction_amount,2) "Transaction Amount", round(transaction_amount/transaction_count,2) "Avg Transaction",district "Districts"
+            query_sw_year_quater = '''SELECT sum(transaction_count) "Transaction Count", round(sum(transaction_amount),2) "Transaction Amount", round(sum(transaction_amount)/sum(transaction_count),2) "Avg Transaction",district "Districts"
                                       FROM map_tran WHERE quater=%s AND year=%s and state=%s
                                       GROUP BY district'''
             
@@ -403,12 +409,15 @@ class PhonepeDataVisualization:
 # Streamlit part
 
 if __name__ == "__main__":
+    
+    obj = PhonepeDataVisualization()
     st.set_page_config(layout='wide')
     st.title('Phonepe Data Visualization And Exploration')
-
+  
 
     with st.sidebar:
-        select = option_menu('Main Menu', ['Home', 'Data Exploration', 'Graphical representation'])
+        select = option_menu('Main Menu', ['Home', 'Data Exploration', 'Insights'])
+
 
     if select == 'Home':
         col1,col2=st.columns(2)
@@ -431,7 +440,7 @@ if __name__ == "__main__":
 
             if option1 == 'Transactions':
                 
-                obj = PhonepeDataVisualization()
+
 
                 obj.mycursor.execute('SELECT DISTINCT year FROM aggregate_transaction')
                 years = [row[0] for row in obj.mycursor.fetchall()]
@@ -557,7 +566,7 @@ if __name__ == "__main__":
                                 st.dataframe(df_pin, hide_index=True)
             
             elif option1=='Users':
-                obj = PhonepeDataVisualization()
+
 
                 obj.mycursor.execute('SELECT DISTINCT year FROM map_user')
                 years = [row[0] for row in obj.mycursor.fetchall()]
@@ -657,6 +666,20 @@ if __name__ == "__main__":
                             else:
                                 df_pin['Pincodes']=df_pin['Pincodes'].astype(str)
                                 st.dataframe(df_pin, hide_index=True)
+
+    elif select=='Insights':
+        st.write('##### Top 10 Insights:')
+        st.write('1.To know top ten mobile users who use phonepe app from 2018 till 2023 ?')
+        obj.mycursor.execute('''select max(brand_count) "Total Number of Users",brand "Brands"  
+                                FROM mobile_users group by brand order by 1 desc limit 10''')
+        
+        result = obj.mycursor.fetchall()
+        columns = [i[0] for i in obj.mycursor.description]
+        df_ten_mob = pd.DataFrame(result, columns=columns)
+        fig = px.bar(df_ten_mob, x='Brands', y='Total Number of Users', hover_data='Total Number of Users', color_discrete_sequence=['red'])
+        st.plotly_chart(fig)
+
+        st.write('')
 
 
 
