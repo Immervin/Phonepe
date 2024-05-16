@@ -126,13 +126,16 @@ class PhonepeDataVisualization:
                 )
 
             fig_geo.update_geos(fitbounds="locations", visible=False)
-            fig_geo.update_traces(hovertemplate='<b>%{hovertext}</b><br><b>Transaction Count:</b> %{customdata[1]:}<br><b>Transaction Amount:</b> ₹%{customdata[0]:.2f}<br><b>Avg Transaction:</b> ₹%{customdata[2]}<extra></extra>')
+            fig_geo.update_traces(hovertemplate='<b>%{hovertext}</b><br><b>Transaction Count:</b> %{customdata[1]:}<br><b>Transaction Amount:</b> ₹%{customdata[0]:.2f}<br><b>Transaction Amount:</b> ₹%{customdata[2]}<extra></extra>')
             st.plotly_chart(fig_geo)
 
             # elif option_type == 'All India':
-            l.setlocale(l.LC_MONETARY, 'en_IN')
+
             st.write('##### Transactions')
-            st.metric(label="All PhonePe transactions (UPI + Cards + Wallets)", value=l.currency(total_tran, grouping=True, symbol=False))
+            l.setlocale(l.LC_ALL, 'en_IN.UTF-8')
+            total_tran = l.format_string("%d", total_tran, grouping=True)
+            st.metric(label="All PhonePe transactions (UPI + Cards + Wallets)", value=total_tran)
+            l.setlocale(l.LC_MONETARY, 'en_IN')
             st.metric(label="Total payment value", value=l.currency(total_amount, grouping=True))
             st.metric(label="Avg. transaction value", value=l.currency(total_avg, grouping=True))
         
@@ -171,9 +174,17 @@ class PhonepeDataVisualization:
             st.plotly_chart(fig)
 
             # elif option_type == 'All India':
-            l.setlocale(l.LC_MONETARY, 'en_IN')
+            # l.setlocale(l.LC_MONETARY, 'en_IN')
+            # st.write('##### Transactions')
+            # st.metric(label="All PhonePe transactions (UPI + Cards + Wallets)", value=l.currency(total_tran, grouping=True, symbol=False))
+            # st.metric(label="Total payment value", value=l.currency(total_amount, grouping=True))
+            # st.metric(label="Avg. transaction value", value=l.currency(total_avg, grouping=True))
+
             st.write('##### Transactions')
-            st.metric(label="All PhonePe transactions (UPI + Cards + Wallets)", value=l.currency(total_tran, grouping=True, symbol=False))
+            l.setlocale(l.LC_ALL, 'en_IN.UTF-8')
+            total_tran = l.format_string("%d", total_tran, grouping=True)
+            st.metric(label="All PhonePe transactions (UPI + Cards + Wallets)", value=total_tran)
+            l.setlocale(l.LC_MONETARY, 'en_IN')
             st.metric(label="Total payment value", value=l.currency(total_amount, grouping=True))
             st.metric(label="Avg. transaction value", value=l.currency(total_avg, grouping=True))
 
@@ -190,7 +201,7 @@ class PhonepeDataVisualization:
             result = self.mycursor.fetchall()
             columns = [i[0] for i in self.mycursor.description]
             df_aggregate_user_year_quater = pd.DataFrame(result, columns=columns)
-            tot_reg=df_aggregate_user_year_quater['Registered User']
+            # tot_reg=df_aggregate_user_year_quater['Registered User']
 
             query_oa_plot = '''SELECT  state as "States",SUM(Registered_Users) AS "Registered User",
                                     sum(App_Opens) "Apps Opened"
@@ -249,6 +260,71 @@ class PhonepeDataVisualization:
             st.write('##### Registered User')
             st.metric(label="Registered Users", value= tot_reg)
             st.metric(label="Apps Opened", value=tot_app)
+
+        elif ways=='State Wise':
+            # StateWise users
+            query_sw_year_quater = '''SELECT District "Districts",sum(Registered_Users) "Registered Users",sum(App_Opens) "Apps Opened" 
+                                      FROM map_user 
+                                      where Quater=%s and year=%s and state=%s
+                                      group by District'''
+            
+            self.mycursor.execute(query_sw_year_quater, (quarter, year,state))
+
+            result = self.mycursor.fetchall()
+            columns = [i[0] for i in self.mycursor.description]
+            df_aggregate_user_year_quater = pd.DataFrame(result, columns=columns)
+
+            query_sw_tot = '''SELECT sum(Registered_Users) "Registered Users",sum(App_Opens) "Apps Opened" 
+                              FROM map_user 
+                              WHERE Quater=%s and year=%s and state=%s'''
+            
+            self.mycursor.execute(query_sw_tot, (quarter, year,state))
+            result = self.mycursor.fetchall()
+            columns = [i[0] for i in self.mycursor.description]
+            df_overall = pd.DataFrame(result, columns=columns)
+            
+            tot_reg = df_overall['Registered Users'].iloc[0]
+            tot_app = df_overall['Apps Opened'].iloc[0]
+        
+         
+
+            # District wise chart
+            fig = px.bar(df_aggregate_user_year_quater, x='Districts', y='Registered Users',
+                          hover_data={'Registered Users','Apps Opened'},
+                            color_discrete_sequence=['red'])
+            st.plotly_chart(fig)
+
+
+            # Extract the total registered users
+            if df_overall.empty or df_overall['Registered Users'].isnull().all():
+                tot_reg = 0
+            else:
+                tot_reg = int(df_overall.at[0, 'Registered Users'])
+
+            if df_overall.empty or df_overall['Apps Opened'].isnull().all():
+                tot_app = 'Not Available'
+            else:
+                tot_app = df_overall.at[0, 'Apps Opened']
+            if tot_app == 0:
+                tot_app = 'Not Available'
+                tot_app=int(df_overall['Apps Opened'])
+
+
+
+            l.setlocale(l.LC_ALL, 'en_IN.UTF-8')
+            tot_reg = l.format_string("%d", tot_reg, grouping=True)
+
+            if tot_app!='Not Available':
+                tot_app = l.format_string("%d", int(tot_app), grouping=True)
+
+
+
+            st.write('##### Users')
+            st.metric(label=f'Registered PhonePe Users till {year} Q{quarter}', value=tot_reg)
+            st.metric(label=f'PhonePe App Opens in {year} Q{quarter}', value=tot_app)
+
+
+            
            
     
     def top_users(self,year,quarter,ways,state=None):
@@ -292,24 +368,61 @@ class PhonepeDataVisualization:
             return df_oa_top_state,df_oa_top_dist,df_oa_top_pin
 
         elif ways=='State Wise':
-            pass
+            # top distrcts 
+            query_sw_top_dist='''select District "Districts",sum(Registered_Users) "Registered Users" 
+                                 from map_user 
+                                where quater=%s and year=%s and state=%s
+                                group by District 
+                                order by 2 DESC 
+                                limit 10'''
+            
+            self.mycursor.execute(query_sw_top_dist, (quarter, year,state))
+            result = self.mycursor.fetchall()
+            columns = [i[0] for i in self.mycursor.description]
+            df_sw_top_dist = pd.DataFrame(result, columns=columns)
+
+            # top pincode 
+            query_sw_top_pin='''select pincode "Pincodes",sum(Registered_User) "Registered Users" 
+                                from top_user 
+                                where quater=%s and year=%s and state=%s
+                                group by pincode 
+                                order by 2 DESC 
+                                limit 10'''
+            
+            self.mycursor.execute(query_sw_top_pin, (quarter, year,state))
+            result = self.mycursor.fetchall()
+            columns = [i[0] for i in self.mycursor.description]
+            df_sw_top_pin = pd.DataFrame(result, columns=columns) 
+            return df_sw_top_dist,df_sw_top_pin
 
     
 
                     
 
                 
-
+# Streamlit part
 
 if __name__ == "__main__":
     st.set_page_config(layout='wide')
     st.title('Phonepe Data Visualization And Exploration')
 
+
     with st.sidebar:
         select = option_menu('Main Menu', ['Home', 'Data Exploration', 'Graphical representation'])
 
     if select == 'Home':
-        pass
+        col1,col2=st.columns(2)
+
+        with col1:
+            pic='C:/Projects/vscode/phonepe/pic.webp'
+            st.image(pic,caption="CEO & Founder of Phonepe: Mr. Sameer Nigam",use_column_width=True)
+
+        with col2:
+            st.write("##### The Evolution & Future of India's Digital Payments Industry")
+            st.write("PhonePe Group is India’s leading fintech company. Its flagship product, the PhonePe digital payments app, was launched in Aug 2016. Within a short period of time, the company has scaled rapidly to become India’s leading consumer payments app. On the back of its leadership in digital payments, PhonePe Group has expanded into financial services - Insurance, Lending, & Wealth as well as new consumer tech businesses - Pincode and Indus Appstore.")
+
+    
+        
     elif select == 'Data Exploration':
         tab1, tab2 = st.columns(2)
 
@@ -502,9 +615,48 @@ if __name__ == "__main__":
 
                             else:
                                 df_pin['Pincodes']=df_pin['Pincodes'].astype(str)
-                                st.dataframe(df_pin, hide_index=True)       
+                                st.dataframe(df_pin, hide_index=True)  
+
+                    elif option_type=='State Wise':
+                        
+                        obj.mycursor.execute('select distinct state from map_user')
+                        states = [row[0] for row in obj.mycursor.fetchall()]
+                        st_inp=st.selectbox('States',states)   
+
+                        obj.Aggregate_User_section(inp_year, quarter,option_type,st_inp)    
+
+                        df_dist,df_pin=obj.top_users(inp_year,quarter,option_type,st_inp)
+                        
+                        st.markdown('-------------------------------------------')
+                        tabs = st.tabs(['Districts', 'Pincodes'])
+
+                        # Districts tab
+                        with tabs[0]:
+                            st.header('Top 10 Districts')
+                            opt = st.radio('Select options', ['District Charts', 'District Data'])
+                            if opt == 'District Charts':
+                                fig = px.bar(df_dist, x='Districts', y='Registered Users', hover_data='Registered Users', color_discrete_sequence=['red'])
+                                st.plotly_chart(fig)
+                            else:
+                                st.dataframe(df_dist, hide_index=True)
+
+                        # Pincodes tab
+                        with tabs[1]:
+                            st.header('Top 10 Postal Codes')
+                            opt = st.radio('Select options', ['Pincode Charts', 'Pincode Data'])
+                            if opt == 'Pincode Charts':
+                                
+                                df_pin_sorted = df_pin.sort_values(by='Registered Users', ascending=False)
+                                df_pin_sorted['Pincodes'] = df_pin_sorted['Pincodes'].astype(str)
+                                pincode_order = df_pin_sorted['Pincodes'].tolist()
+                                # plot
+                                fig_pie=px.pie(values=df_pin['Registered Users'],names=df_pin['Pincodes'])
+                                st.plotly_chart(fig_pie)
 
 
+                            else:
+                                df_pin['Pincodes']=df_pin['Pincodes'].astype(str)
+                                st.dataframe(df_pin, hide_index=True)
 
 
 
