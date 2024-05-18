@@ -74,7 +74,21 @@ def phonepe_tables():
             pincode INT(11) DEFAULT NULL,
             Registered_user INT(11) DEFAULT NULL
         );
+        ''',
         '''
+    CREATE TABLE IF NOT EXISTS mobile_users (
+        state VARCHAR(225),
+        year VARCHAR(225),
+        quater INT,
+        brand VARCHAR(225),
+        brand_count INT,
+        brand_percentage FLOAT
+    )
+'''
+
+
+
+
     ]
 
     for query in queries:
