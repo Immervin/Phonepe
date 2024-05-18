@@ -401,10 +401,25 @@ class PhonepeDataVisualization:
             df_sw_top_pin = pd.DataFrame(result, columns=columns) 
             return df_sw_top_dist,df_sw_top_pin
 
-    
 
-                    
+    def execute_query(self,user_response):
+        mydb = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database='youtube_data'
+        )
 
+        mycursor = mydb.cursor(buffered=True)
+
+        query = ""
+        if user_response == "To know top ten mobile users who use phonepe app from 2018 till 2023":
+            query = '''select max(brand_count) "Total Number of Users",brand "Brands"  
+                                    FROM mobile_users group by brand order by 1 desc limit 10'''
+        elif user_response == "To know Year wise Transaction percentage":
+            query = '''select round(sum(transaction_amount),2) amt,sum(transaction_count) cnt, round((sum(transaction_amount)/sum(transaction_count)) ,2) Avg_tran,year 
+                    from aggregate_transaction 
+                    group by year'''
                 
 # Streamlit part
 
@@ -668,20 +683,142 @@ if __name__ == "__main__":
                                 st.dataframe(df_pin, hide_index=True)
 
     elif select=='Insights':
-        st.write('##### Top 10 Insights:')
-        st.write('1.To know top ten mobile users who use phonepe app from 2018 till 2023 ?')
-        obj.mycursor.execute('''select max(brand_count) "Total Number of Users",brand "Brands"  
-                                FROM mobile_users group by brand order by 1 desc limit 10''')
+        questions={'question':['To know highest yield of Phonepe over the year',
+                               'To know which mobile brands contributed mostly for Phonepe App',
+                               'To know growth trend on transaction type',
+                               'To know the trend on Quarter wise Transactions',
+                               'Top 10 leading states',
+                               'Top 10 leading districts',
+                               'To know Average transaction trends over the years'
+                               ]
+
+        }
+        user_response=st.radio('##### Top 10 Insights: ',questions['question'])
+
+        if user_response=='To know which mobile brands contributed mostly for Phonepe App':
+            obj.mycursor.execute('''SELECT sum(brand_count) "Total",brand "Brands" 
+                                 FROM mobile_users 
+                                 group by brand 
+                                 order by 1 desc 
+                                 limit 10''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
+            fig_donut = px.pie(df, values='Total', names='Brands', title='Top 10 Mobile Brands who uses Phonepe', hole=0.4)
+            st.plotly_chart(fig_donut)
         
-        result = obj.mycursor.fetchall()
-        columns = [i[0] for i in obj.mycursor.description]
-        df_ten_mob = pd.DataFrame(result, columns=columns)
-        fig = px.bar(df_ten_mob, x='Brands', y='Total Number of Users', hover_data='Total Number of Users', color_discrete_sequence=['red'])
-        st.plotly_chart(fig)
+        elif user_response=='To know highest yield of Phonepe over the year':
+            obj.mycursor.execute('''select  round((transaction_amount/transaction_count)*100,2) percentage,year 
+                                 from aggregate_transaction 
+                                 group by year 
+                                 order by 1 desc''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
 
-        st.write('')
+
+            fig_donut = px.pie(df, values='percentage', names='year', title='Year wise Growth percentage', hole=0.4)
+            st.plotly_chart(fig_donut)
+               
+        
+        elif user_response=='To know growth trend on transaction type':
+            obj.mycursor.execute('''select sum(transaction_count) "Transactions",transaction_type "Type",year "Years"
+                 from aggregate_transaction 
+                 group by transaction_type,year''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
 
 
+            fig_line = px.line(df, x='Type', y='Transactions', color='Years',
+                            color_discrete_sequence=px.colors.qualitative.Set1)
+            fig_line.update_layout(title='Transactions by Type Over the Years',
+                                xaxis_title='Type', yaxis_title='Transactions')
+
+            st.plotly_chart(fig_line)       
+
+        elif user_response=='To know the trend on Quarter wise Transactions':
+            obj.mycursor.execute('''select sum(transaction_count) Transactions, year Years, Quater Quarter 
+                            from aggregate_transaction 
+                            group by Quarter, year 
+                            order by Quarter, year;''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
+
+            df['Quarter'] = pd.Categorical(df['Quarter'], categories=[1, 2, 3, 4], ordered=True)
+
+            # Create the bar chart
+            fig_bar = px.bar(df, x='Quarter', y='Transactions', color='Years',
+                            title='Quarterly Transactions Over the Years',color_discrete_sequence=['Reds'],
+                            facet_col='Years', facet_col_wrap=4,
+                            labels={'Transactions': 'Transactions', 'Years': 'Year', 'Quarter': 'Quarter'},
+                            category_orders={'Quarter': [1, 2, 3, 4]})
+
+
+
+            st.plotly_chart(fig_bar)  
+        elif user_response=='Top 10 leading states':
+            obj.mycursor.execute('''select sum(transaction_amount) "Amount",sum(transaction_count) "Transactions" ,state "States"
+                 from aggregate_transaction 
+                 group by state order by 2 desc limit 10''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
+
+            fig_bar = px.bar(df, x='States', y='Transactions', 
+                            title='Top 10 States by Transactions',color_discrete_sequence=['red']
+            )
+
+            st.plotly_chart(fig_bar)
+
+        elif user_response=='Top 10 leading districts':
+            obj.mycursor.execute('''select sum(transaction_amount) "Amount",sum(transaction_count) "Transactions" ,district "Districts"
+                 from map_tran 
+                 group by district order by 2 desc limit 10''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
+
+            fig_bar = px.bar(df, x='Districts', y='Transactions', 
+                            title='Top 10 States by Transactions',color_discrete_sequence=['red']
+            )
+
+            st.plotly_chart(fig_bar)
+
+        elif user_response=='Top 10 leading districts':
+            obj.mycursor.execute('''select sum(transaction_amount) "Amount",sum(transaction_count) "Transactions" ,district "Districts"
+                 from map_tran 
+                 group by district order by 2 desc limit 10''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
+
+            fig_bar = px.bar(df, x='Districts', y='Transactions', 
+                            title='Top 10 States by Transactions',color_discrete_sequence=['red']
+            )
+
+            st.plotly_chart(fig_bar)
+
+        elif user_response=='To know Average transaction trends over the years':
+            obj.mycursor.execute('''select round((transaction_amount/transaction_count),2) "Average Transactions", year 
+                                    from aggregate_transaction 
+                                    group by year 
+                                    order by 1 desc''')
+            result = obj.mycursor.fetchall()
+            columns = [i[0] for i in obj.mycursor.description]
+            df = pd.DataFrame(result, columns=columns)
+
+            df['year'] = pd.Categorical(df['year'], categories=sorted(df['year'].unique()), ordered=True)
+
+            # Create the bar chart
+            fig_bar = px.bar(df, x='year', y='Average Transactions', 
+                            title='Average Transaction Trends by Year', 
+                            color_discrete_sequence=['red'],
+                            labels={'Average Transactions': 'Average Transactions', 'year': 'Year'})
+
+            # Show the chart in Streamlit
+            st.plotly_chart(fig_bar)
 
                         
 
