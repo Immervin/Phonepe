@@ -1,6 +1,6 @@
-<h1 align="center" id="title">Phonepe Pulse Data Visualization and Exploration: A User-Friendly Tool Using Streamlit and Plotly</h1>
+<h1 align="left" id="title">Phonepe Pulse Data Visualization and Exploration: A User-Friendly Tool Using Streamlit and Plotly</h1>
 
-<p align="center"><img src="https://drive.google.com/file/d/1VBRecdnRpbutknJLNZQC4f1bc1eKWdsw/view" alt="project-image"></p>
+
 
 <p id="description">Problem Statement: The Phonepe pulse Github repository contains a large amount of data related to various metrics and statistics. The goal is to extract this data and process it to obtain insights and information that can be visualized in a user-friendly manner. The solution must include the following steps:
   1. Extract data from the Phonepe pulse Github repository through scripting and clone it.. 
@@ -44,4 +44,8 @@ import locale as l
 
 ```
 import json
+```
+
+```
+import git
 ```
