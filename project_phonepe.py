@@ -402,24 +402,7 @@ class PhonepeDataVisualization:
             return df_sw_top_dist,df_sw_top_pin
 
 
-    def execute_query(self,user_response):
-        mydb = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="",
-            database='youtube_data'
-        )
 
-        mycursor = mydb.cursor(buffered=True)
-
-        query = ""
-        if user_response == "To know top ten mobile users who use phonepe app from 2018 till 2023":
-            query = '''select max(brand_count) "Total Number of Users",brand "Brands"  
-                                    FROM mobile_users group by brand order by 1 desc limit 10'''
-        elif user_response == "To know Year wise Transaction percentage":
-            query = '''select round(sum(transaction_amount),2) amt,sum(transaction_count) cnt, round((sum(transaction_amount)/sum(transaction_count)) ,2) Avg_tran,year 
-                    from aggregate_transaction 
-                    group by year'''
                 
 # Streamlit part
 
